@@ -1,0 +1,88 @@
+---
+title: "Projet STT-7335"
+author: "Anne-Cecile M'baucci, Mamadou Mbodj & Kossi Clément Trenou"
+date: '2022-04-05'
+output: html_document
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Installation de pcaMethods
+L'installation du package pcaMethods peut-être pas mal compliquée dans la mesure où celui-ci ne se trouve pas sur le CRAN-R mais plutôt sur Bioconductor. Les lignes de codes ci-dessous permettent, normalement, de l'installer.
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+install.packages("BiocManager")
+BiocManager::install()
+BiocManager::install("pcaMethods")
+```
+
+## Description des données utilisées
+
+Dans cet exemple, nous utiliserons les jeux de données metaboliteData et iris. Le premier est utilisée avec la librairie pcaMethods pour faire une ACP probabiliste, observer les scores des observations et les loadings des variables sur les composantes principales (variables latentes). Et le second jeu de données (la fameuse base de données iris) est utilisé avec la librairie Rdimtools qui permet également de faire des méthodes de réduction de dimensions. Nous faisons une comparaison entre les résultats d'une ACP probabiliste et ceux d'une analyse factorielle (vue en classe).
+
+```{r, message=F}
+library(pcaMethods)
+data(metaboliteData)
+summary(metaboliteData)
+data(iris)
+summary(iris)
+```
+
+## PPCA avec pcaMethods
+
+Nous utilisons dans un premier temps la fonction pca disponible dans la librairie pcaMethods avec l'argument method="ppca" pour ajuster notre modèle. Ainsi, nous fixons arbitrairement le nombre de composantes à 3. Le choix du nombre de composantes peut être fait par la méthode très connue du screeplot : ici il s'agira de représenter les $R^2$ (et non des valeurs propres comme en ACP) qui représentent le taux de variabilité expliquées par les facteurs. On peut également raisonner avec les déviations standard à la place des $R^2$. Les scores, comme en AF, représentent les scores estimées des observations sur les composantes principales. Et de même les loadings représentent le niveau de corrélation entre les variables et les composantes principales.
+
+```{r, message=F}
+library(pcaMethods)
+data(metaboliteData)
+## Probabilistic PCA avec 3 composantes principales
+result_ppca <- pca(metaboliteData, method="ppca", nPcs=3, seed=123)
+## Summary
+summary(result_ppca)
+## screeplot R2 - choix du nombre de composantes
+plot(result_ppca)
+##Standard deviation des composantes principales
+sDev(result_ppca)
+plot(sDev(result_ppca), ylab ="standard deviation", xlab = "CP", main = "Screeplot des deviations standards")
+## Observations complete estimées
+cObs <- completeObs(result_ppca)
+## Scores des observations sur les CP
+plotPcs(result_ppca, type = "scores")
+## Loadings des variables sur les CP
+plotPcs(result_ppca, type = "loading")
+
+```
+
+## PPCA avec Rdimtools
+
+Un autre moyen de réaliser une ACP probabiliste est en utilisant la fonction do.ppca de la librairie Rdimtools. Ce qui nous interesse dans cette partie, c'est de faire une comparaison entre les résultats de l'analyse factorielle et ceux de l'acp probabiliste particulièrement sur la configuration les observations. On observe des résultats similaires en regardant les deux représentations des observations sur les deux premiers axes.
+
+```{r,message=F}
+data(iris)
+X = as.matrix(iris[,1:4])
+label = as.factor(iris[,5])
+
+## Comparaison PPCA et AF
+library(Rdimtools)
+set.seed(1234)
+PPCA <- do.ppca(X, ndim=2)
+AF <- do.fa(X, ndim=2)
+
+## Visualisation des scores
+par(mfrow=c(1,2))
+plot(AF$Y,  pch=19, col=label, main="AF")
+legend("topright", legend=c("setosa", "versicolor", "virginica"),
+        fill = c(1,2,3))
+plot(PPCA$Y, pch=19, col=label, main="PPCA")
+
+
+## Visualisation des loadings
+par(mfrow=c(1,2))
+plot(AF$loadings,  pch=19, main="AF")
+plot(PPCA$projection, pch=19, main="PPCA")
+
+```
